@@ -1,40 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
 
 export default function Chat({ project, onBack }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [editingPrompt, setEditingPrompt] = useState(false);
-  const bottomRef = useRef(null);
 
-  // Load chat + prompt
+  // 🔹 Load chat history
   useEffect(() => {
-    const loadData = async () => {
-      const chatRes = await api.get(`/chat/${project.id}`);
-      setMessages(chatRes.data);
-
-      const promptRes = await api.get(`/projects/${project.id}/prompt`);
-      setSystemPrompt(promptRes.data.systemPrompt);
+    const loadHistory = async () => {
+      const res = await api.get(`/chat/${project.id}`);
+      setMessages(res.data);
     };
-    loadData();
+    loadHistory();
   }, [project.id]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  const savePrompt = async () => {
-    await api.put(`/projects/${project.id}/prompt`, { systemPrompt });
-    setEditingPrompt(false);
-  };
-
+  // 🔹 Send message + stream response
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    setMessages((prev) => [...prev, { role: "user", content: input }]);
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    const content = input; // ✅ FIX: store input before clearing
+    setInput("");
+
+    // Add user message to UI
+    setMessages((prev) => [...prev, { role: "user", content }]);
+
+    setLoading(true);
 
     const res = await fetch(
       `https://chatbot-backend-0g5l.onrender.com/chat/${project.id}`,
@@ -44,14 +35,11 @@ export default function Chat({ project, onBack }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({ message: content }), // ✅ FIX
       },
     );
 
-    setInput("");
-    setLoading(true);
-
-    let text = "";
+    let assistantText = "";
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
 
@@ -59,13 +47,22 @@ export default function Chat({ project, onBack }) {
       const { value, done } = await reader.read();
       if (done) break;
 
-      text += decoder.decode(value);
+      const chunk = decoder.decode(value);
+      assistantText += chunk;
+
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: text,
-        };
+        const last = updated[updated.length - 1];
+
+        if (last?.role === "assistant") {
+          last.content = assistantText;
+        } else {
+          updated.push({
+            role: "assistant",
+            content: assistantText,
+          });
+        }
+
         return updated;
       });
     }
@@ -76,57 +73,32 @@ export default function Chat({ project, onBack }) {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="bg-white p-4 shadow flex gap-4">
+      <div className="bg-white p-4 shadow flex items-center gap-4">
         <button onClick={onBack} className="text-blue-600">
           ← Back
         </button>
         <h2 className="font-semibold">{project.name}</h2>
       </div>
 
-      {/* System Prompt */}
-      <div className="bg-yellow-50 p-4 border-b">
-        <div className="flex justify-between">
-          <strong>System Prompt</strong>
-          <button
-            onClick={() => setEditingPrompt(!editingPrompt)}
-            className="text-blue-600 text-sm">
-            {editingPrompt ? "Cancel" : "Edit"}
-          </button>
-        </div>
-
-        {editingPrompt ? (
-          <>
-            <textarea
-              className="w-full mt-2 p-2 border rounded"
-              rows={3}
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-            />
-            <button
-              onClick={savePrompt}
-              className="mt-2 bg-blue-600 text-white px-3 py-1 rounded">
-              Save
-            </button>
-          </>
-        ) : (
-          <p className="text-sm mt-2">{systemPrompt}</p>
-        )}
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-        {messages.map((m, i) => (
+        {messages.map((msg, idx) => (
           <div
-            key={i}
+            key={idx}
             className={`max-w-xl p-3 rounded ${
-              m.role === "user"
+              msg.role === "user"
                 ? "ml-auto bg-blue-600 text-white"
                 : "mr-auto bg-white shadow"
             }`}>
-            {m.content}
+            {msg.content}
           </div>
         ))}
-        <div ref={bottomRef} />
+
+        {loading && (
+          <div className="mr-auto bg-white p-3 rounded shadow text-gray-400">
+            AI is typing...
+          </div>
+        )}
       </div>
 
       {/* Input */}
@@ -136,10 +108,11 @@ export default function Chat({ project, onBack }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask something..."
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
         <button
           onClick={sendMessage}
-          className="bg-blue-600 text-white px-4 rounded">
+          className="bg-blue-600 text-white px-4 rounded hover:bg-blue-700">
           Send
         </button>
       </div>
