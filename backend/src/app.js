@@ -5,7 +5,12 @@ import chatRoutes from "./routes/chat.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "*", // later restrict to Vercel domain
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.get("/", (req, res) => {
   res.send("API is running");
