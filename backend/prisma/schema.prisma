@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String   @id @default(uuid())
+  email    String   @unique
+  password String
+  projects Project[]
+}
+
+model Project {
+  id           String        @id @default(uuid())
+  name         String
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  chatMessages ChatMessage[]
+  systemPrompt String        @default("You are a helpful AI assistant.")
+}
+
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String
+  content   String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+}
+
