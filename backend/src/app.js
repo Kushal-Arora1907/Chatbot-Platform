@@ -5,17 +5,25 @@ import chatRoutes from "./routes/chat.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 
 const app = express();
+
+// ✅ CORS CONFIG (VERCEL + RENDER SAFE)
 app.use(
   cors({
-    origin: "*", // later restrict to Vercel domain
-    credentials: true,
+    origin: [
+      "http://localhost:5173", // local dev
+      "https://chatbot-platform-mu.vercel.app/", // 👈 CHANGE to your Vercel URL
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-app.use(express.json());
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
 
+// ✅ Handle preflight explicitly
+app.options("*", cors());
+
+app.use(express.json());
+
+// Routes
 app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
 app.use("/chat", chatRoutes);
