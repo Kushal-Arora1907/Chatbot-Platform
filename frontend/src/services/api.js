@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "https://chatbot-backend.onrender.com",
+  baseURL: "https://chatbot-backend-0g5l.onrender.com",
 });
 
 export const setAuthToken = (token) => {
