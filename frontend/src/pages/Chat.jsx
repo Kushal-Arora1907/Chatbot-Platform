@@ -36,14 +36,17 @@ export default function Chat({ project, onBack }) {
     setMessages((prev) => [...prev, { role: "user", content: input }]);
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
-    const res = await fetch(`http://localhost:5000/chat/${project.id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+    const res = await fetch(
+      `https://chatbot-backend-0g5l.onrender.com/chat/${project.id}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ message: userMessage.content }),
       },
-      body: JSON.stringify({ message: input }),
-    });
+    );
 
     setInput("");
     setLoading(true);
